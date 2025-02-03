@@ -30,6 +30,8 @@
             <ul class="nav me-auto">
                 <li class="nav-item"><a href="{% url 'index' %}" class="nav-link link-body-emphasis px-2 active"
                         aria-current="page">Home</a></li>
+                <li class="nav-item"><a href="{% url 'board:create_thread' %}" class="nav-link link-body-emphasis px-2 active"
+                    aria-current="page">2ch</a></li>
             </ul>
             {% if user.is_authenticated %}
             <div class="nav d-block flex-shrink-0 dropdown">
