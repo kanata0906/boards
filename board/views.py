@@ -1,57 +1,41 @@
-from datetime import datetime, timezone
-from .models import Thread
-from django.http import HttpResponseRedirect
-from django.shortcuts import get_object_or_404, render
-from django.urls import reverse
+from django.shortcuts import render, get_object_or_404, redirect
+from .models import Thread, Response
+from datetime import datetime
 
+def index(request):
+    latest_thread_list = Thread.objects.order_by('-pub_date')
+    return render(request, "board/index.html", {"latest_thread_list": latest_thread_list})
 
 def create_thread(request):
-    try:
-        thread = Thread(
-            thread_text=request.POST["thread_str"],
-            pub_date=datetime.now(),
-            latest_date=datetime.now(),
-        )
-    except KeyError:
-        # Redisplay the thread voting form.
-        return render(
-            request,
-            "board/index.html",
-            {
-                "error_message": "Error",
-            },
-        )
-    else:
-        thread.save()
-        # Always return an HttpResponseRedirect after successfully dealing
-        # with POST data. This prevents data from being posted twice if a
-        # user hits the Back button.
-        return HttpResponseRedirect(reverse("board:tweets", args=(thread.id,)))
+    if request.method == "POST":
+        thread_text = request.POST.get("thread_text", "")
+        if thread_text:
+            thread = Thread(thread_text=thread_text, pub_date=datetime.now())
+            thread.save()
+            return redirect("board:detail", thread_id=thread.id)
+    return redirect("board:index")
 
+def detail(request, thread_id):
+    thread = get_object_or_404(Thread, pk=thread_id)
+    responses = thread.response_set.all()
+    return render(request, "board/detail.html", {"thread": thread, "responses": responses})
 
 def tweet(request, thread_id):
     thread = get_object_or_404(Thread, pk=thread_id)
-    try:
-        tweet = thread.response_set.create(
-            response_text=request.POST["tweet_str"],
-            name_text=request.POST["name_str"],
-            tweet_date=datetime.now(),
-        )
-    except KeyError:
-        # Redisplay the thread voting form.
-        return render(
-            request,
-            "board/detail.html",
-            {
-                "thread": thread,
-                "error_message": "You didn't have a tweet.",
-            },
-        )
-    else:
-        tweet.save()
-        thread.update_date()
-        thread.save()
-        # Always return an HttpResponseRedirect after successfully dealing
-        # with POST data. This prevents data from being posted twice if a
-        # user hits the Back button.
-        return HttpResponseRedirect(reverse("board:results", args=(thread.id,)))
+    if request.method == "POST":
+        response_text = request.POST.get("response_text", "")
+        name_text = request.POST.get("name_text", "")
+        if response_text and name_text:
+            response = Response(thread=thread, response_text=response_text, name_text=name_text, tweet_date=datetime.now())
+            response.save()
+            return redirect("board:detail", thread_id=thread.id)
+    return render(request, "board/detail.html", {"thread": thread})
+
+def delete_thread(request):
+    if request.method == "POST":
+        thread_id = request.POST.get("thread_id")
+        thread = get_object_or_404(Thread, pk=thread_id)
+        thread.delete()
+        return redirect("board:index")
+    latest_thread_list = Thread.objects.order_by('-pub_date')
+    return render(request, "board/index.html", {"latest_thread_list": latest_thread_list})
